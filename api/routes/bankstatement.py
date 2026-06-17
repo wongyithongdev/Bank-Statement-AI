@@ -20,6 +20,7 @@ from api.config import settings
 from api.dependencies import get_current_user, get_token
 from api.services.auth_client import check_permission, verify_identity
 from api.services.docker_runner import start_worker
+from api.services.object_server import upload_file as upload_to_object_server
 from api.db import queries
 from api.models.bankstatement import UploadResponse, TaskListItem, TaskDetail
 
@@ -62,20 +63,30 @@ async def upload_pdf(
         )
 
     task_id = str(uuid.uuid4())
-    upload_dir = Path(settings.data_dir) / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = str(upload_dir / f"{task_id}.pdf")
 
-    # Save uploaded PDF
+    # Read PDF content
     content = await file.read()
-    Path(pdf_path).write_bytes(content)
 
-    # Persist task record
+    # Upload to Object Server
+    try:
+        upload_result = await upload_to_object_server(
+            file_bytes=content,
+            filename=file.filename,
+            bookid=book_id,
+        )
+        pdf_link = upload_result["link"]
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to upload file to Object Server: {exc}",
+        )
+
+    # Persist task record (now with Object Server link instead of local path)
     row = await queries.insert_task(
         task_id=task_id,
         book_id=book_id,
         user_id=user["user_id"],
-        pdf_path=pdf_path,
+        pdf_path=pdf_link,  # Now this is the Object Server link
         task_name=task_name or file.filename,
     )
 

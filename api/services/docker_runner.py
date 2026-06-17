@@ -38,6 +38,7 @@ def start_worker(task_id: str) -> str:
         "MIMO_GENERATOR_MODEL": settings.mimo_generator_model,
         "MIMO_EVALUATOR_MODEL": settings.mimo_evaluator_model,
         "DATA_DIR": settings.data_dir,
+        "OBJECT_SERVER_API_KEY": settings.object_server_api_key,
     }
 
     try:

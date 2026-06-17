@@ -3,7 +3,8 @@ Worker entrypoint — runs inside an isolated Docker container per task.
 
 Environment variables required:
   TASK_ID, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER,
-  POSTGRES_PASSWORD, MIMO_API_KEY, MIMO_BASE_URL, DATA_DIR
+  POSTGRES_PASSWORD, MIMO_API_KEY, MIMO_BASE_URL, DATA_DIR,
+  OBJECT_SERVER_API_KEY
 """
 import json
 import os
@@ -14,6 +15,7 @@ from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
+import httpx
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -73,6 +75,31 @@ def _fetch_task(conn, task_id: str) -> dict:
     if row is None:
         raise RuntimeError(f"Task {task_id} not found in database")
     return dict(row)
+
+
+def _upload_xlsx_to_object_server(xlsx_path: str, task_name: str, book_id: str) -> str:
+    """Upload Excel file to Object Server, return the file link."""
+    api_key = os.environ.get("OBJECT_SERVER_API_KEY")
+    if not api_key:
+        raise RuntimeError("OBJECT_SERVER_API_KEY not set")
+
+    with open(xlsx_path, "rb") as f:
+        file_bytes = f.read()
+
+    response = httpx.post(
+        "https://files.my365biz.com/upload",
+        files={"file": (f"{task_name}.xlsx", file_bytes), "bookid": (None, book_id)},
+        headers={"X-API-Key": api_key},
+        timeout=60.0,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Object Server upload failed: {response.status_code} {response.text}"
+        )
+
+    data = response.json()
+    return data["link"]
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -184,8 +211,21 @@ def main():
                 feedback = eval_result.get("feedback", "Please improve the output quality.")
                 prev_summary = gen_result.get("summary", {})
 
+        # Upload Excel to Object Server if task passed
+        file_link = None
+        if final_passed and Path(xlsx_path).exists():
+            try:
+                file_link = _upload_xlsx_to_object_server(
+                    xlsx_path,
+                    task["task_name"] or task_id,
+                    task["book_id"],
+                )
+                print(f"Excel uploaded to Object Server: {file_link}")
+            except RuntimeError as exc:
+                print(f"Warning: Excel upload failed: {exc}", file=sys.stderr)
+                file_link = None
+
         # Final status
-        file_link = f"/api/v1/bankstatement/tasks/{task_id}/download"
         _update_status(
             conn, task_id,
             status="completed",

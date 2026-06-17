@@ -24,6 +24,7 @@ services:
       AUTH_SERVER_URL: "http://auth2.my365biz.com"
       WORKER_IMAGE: "bankstatement-worker:latest"
       DATA_DIR: "/data/bankstatement"
+      OBJECT_SERVER_API_KEY: "b729879ca8881e9a7b986e143e541219d43e0e36ca183529f34aa31ac007c39c"
     env_file:
       - ../.env
     healthcheck:
