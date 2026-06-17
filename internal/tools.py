@@ -18,6 +18,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 TIMEOUT = 60  # 秒
 
+# Per-task sandbox root (set by worker for isolation)
+_runtime_root: "Path | None" = None
+
+def set_project_root(path: str) -> None:
+    global _runtime_root
+    _runtime_root = Path(path)
+
+def _get_root() -> Path:
+    return _runtime_root if _runtime_root is not None else PROJECT_ROOT
+
 
 # ── read_file ─────────────────────────────────────────────────────────────────
 
@@ -27,7 +37,7 @@ def read_file(path: str, start_line: int = None, end_line: int = None, max_chars
     """
     p = Path(path)
     if not p.is_absolute():
-        p = PROJECT_ROOT / path
+        p = _get_root() / path
     if not p.exists():
         return {"success": False, "error": f"File not found: {p}", "path": str(p)}
     try:
@@ -61,7 +71,7 @@ def write_file(path: str, content: str) -> dict:
     """写入文件（覆盖已有内容，自动创建父目录）。"""
     p = Path(path)
     if not p.is_absolute():
-        p = PROJECT_ROOT / path
+        p = _get_root() / path
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
@@ -104,7 +114,7 @@ def list_directory(path: str = ".", pattern: str = None) -> dict:
     """
     p = Path(path)
     if not p.is_absolute():
-        p = PROJECT_ROOT / path
+        p = _get_root() / path
     if not p.exists():
         return {"success": False, "error": f"Directory not found: {p}"}
     if not p.is_dir():
@@ -144,7 +154,7 @@ def search_file(path: str, pattern: str, context_lines: int = 2, max_matches: in
     """
     p = Path(path)
     if not p.is_absolute():
-        p = PROJECT_ROOT / path
+        p = _get_root() / path
     if not p.exists():
         return {"success": False, "error": f"File not found: {p}"}
     try:
@@ -193,7 +203,7 @@ def run_python(code: str, working_dir: str = None) -> dict:
     超时 60 秒，捕获 stdout / stderr。
     """
     if working_dir is None:
-        working_dir = str(PROJECT_ROOT)
+        working_dir = str(_get_root())
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
         f.write(textwrap.dedent(code))
@@ -206,7 +216,7 @@ def run_python(code: str, working_dir: str = None) -> dict:
             text=True,
             timeout=TIMEOUT,
             cwd=working_dir,
-            env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT)},
+            env={**os.environ, "PYTHONPATH": str(_get_root())},
         )
         return {
             "success": result.returncode == 0,

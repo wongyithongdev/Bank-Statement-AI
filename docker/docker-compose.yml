@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    image: bankstatement-api:latest
+    container_name: bankstatement-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Docker socket — allows API to start worker containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Shared file storage for uploads and outputs
+      - /data/bankstatement:/data/bankstatement
+    environment:
+      POSTGRES_HOST: "10.0.10.63"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "root"
+      POSTGRES_USER: "root"
+      POSTGRES_PASSWORD: "root"
+      AUTH_SERVER_URL: "http://auth2.my365biz.com"
+      WORKER_IMAGE: "bankstatement-worker:latest"
+      DATA_DIR: "/data/bankstatement"
+    env_file:
+      - ../.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -212,15 +212,20 @@ def generate(
     prev_summary: dict = None,
     log_dir: str = None,
     iteration: int = 1,
+    sandbox_dir: str = None,
 ) -> dict:
     """
     Generator Agent (mimo-v2.5-pro, reasoning=high).
     Plans internally via extended thinking, then executes autonomously.
     Anthropic Plan A: fresh context per iteration.
     skills_catalog_text: Progressive Disclosure Layer 1 — name+description only.
+    sandbox_dir: per-task isolated workspace (overrides default scratch.md location).
     """
     project_root = str(Path(__file__).parent)
-    scratch_path = str(Path(__file__).parent / "scratch.md")
+    if sandbox_dir:
+        scratch_path = str(Path(sandbox_dir) / "scratch.md")
+    else:
+        scratch_path = str(Path(__file__).parent / "scratch.md")
 
     # ── Skills section: Anthropic Progressive Disclosure Layer 1 ─────────────
     skills_section = ""
