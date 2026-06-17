@@ -32,7 +32,7 @@ async def get_task(task_id: str) -> dict | None:
         """
         SELECT task_id, book_id, user_id, status, pdf_path, xlsx_path,
                task_name, file_link, score, iterations, error,
-               stream_events, created_at, updated_at
+               stream_events, chat_history, created_at, updated_at
         FROM bankstatement
         WHERE task_id = $1
         """,

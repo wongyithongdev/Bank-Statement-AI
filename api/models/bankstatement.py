@@ -30,5 +30,6 @@ class TaskDetail(BaseModel):
     file_link: str | None
     error: str | None
     stream_events: list[Any]
+    chat_history: list[Any] | None  # Full conversation with Claude (Generator + Evaluator)
     created_at: datetime
     updated_at: datetime
