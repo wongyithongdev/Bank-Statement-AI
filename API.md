@@ -136,7 +136,7 @@ Authorization: Bearer {access_token}
     "task_id": "550e8400-e29b-41d4-a716-446655440000",
     "task_name": "Jan 2026 Statement",
     "book_id": "book_mnIDVn39cOk",
-    "user_id": "user-123",
+    "user_id": "keycloak-user-abc123def456",
     "status": "completed",
     "created_at": "2026-06-17T18:30:00Z"
   },
@@ -144,12 +144,20 @@ Authorization: Bearer {access_token}
     "task_id": "660e8400-e29b-41d4-a716-446655440001",
     "task_name": "Dec 2025 Statement",
     "book_id": "book_mnIDVn39cOk",
-    "user_id": "user-123",
+    "user_id": "keycloak-user-abc123def456",
     "status": "processing",
     "created_at": "2026-06-16T14:00:00Z"
   }
 ]
 ```
+
+#### Field Descriptions
+
+- `task_id` — Unique task UUID
+- `task_name` — Human-readable label (optional, provided at upload time)
+- `book_id` — Book this task belongs to (from AuthServer current-book)
+- `user_id` — Keycloak user ID (UUID, not username)
+- `status` — Current state of the task
 
 #### Status Values
 
@@ -185,7 +193,7 @@ Authorization: Bearer {access_token}
 {
   "task_id": "550e8400-e29b-41d4-a716-446655440000",
   "book_id": "book_mnIDVn39cOk",
-  "user_id": "user-123",
+  "user_id": "keycloak-user-abc123def456",
   "status": "completed",
   "task_name": "Jan 2026 Statement",
   "file_link": "https://files.my365biz.com/files/abc123def456",
