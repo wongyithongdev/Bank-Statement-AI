@@ -184,7 +184,7 @@ def main():
                     all_iterations_log.append({
                         "iteration": iteration,
                         "phase": "generator",
-                        "messages": gen_log.get("messages", []),
+                        "messages": [m for m in gen_log.get("messages", []) if m.get("role") == "assistant"],
                         "reasoning_blocks": gen_log.get("reasoning_blocks", []),
                     })
                 except Exception:
@@ -224,7 +224,7 @@ def main():
                     all_iterations_log.append({
                         "iteration": iteration,
                         "phase": "evaluator",
-                        "messages": eval_log.get("messages", []),
+                        "messages": [m for m in eval_log.get("messages", []) if m.get("role") == "assistant"],
                         "reasoning_blocks": eval_log.get("reasoning_blocks", []),
                     })
                 except Exception:
