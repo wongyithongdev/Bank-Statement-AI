@@ -44,13 +44,13 @@ async def get_task(task_id: str) -> dict | None:
 
 
 async def list_tasks(book_ids: list[str]) -> list[dict]:
-    """List tasks for multiple books."""
+    """List tasks for multiple books (summary only)."""
     pool = get_pool()
     if not book_ids:
         return []
     rows = await pool.fetch(
         """
-        SELECT task_id, task_name, status, score, iterations, file_link, created_at, updated_at
+        SELECT task_id, task_name, book_id, user_id, status, created_at
         FROM bankstatement
         WHERE book_id = ANY($1)
         ORDER BY created_at DESC

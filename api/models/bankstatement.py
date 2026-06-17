@@ -13,12 +13,10 @@ class UploadResponse(BaseModel):
 class TaskListItem(BaseModel):
     task_id: str
     task_name: str | None
+    book_id: str
+    user_id: str
     status: str
-    score: float | None
-    iterations: int | None
-    file_link: str | None  # Object Server link to Excel, if completed
     created_at: datetime
-    updated_at: datetime
 
 
 class TaskDetail(BaseModel):
