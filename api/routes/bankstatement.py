@@ -48,12 +48,31 @@ async def _assert_task_access(task_id: str, user: dict) -> dict:
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_pdf(
     file: UploadFile = File(..., description="Bank statement PDF"),
-    book_id: str = Form(...),
+    book_id: str = Form(None, description="Book ID (optional, defaults to first book)"),
     task_name: str = Form(None),
     user: dict = Depends(get_current_user),
     token: str = Depends(get_token),
 ):
-    # Verify book.read permission on the target book
+    # Get user's books from AuthServer identity
+    user_books = user.get("books", [])
+    if not user_books:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not belong to any books",
+        )
+
+    # Determine which book to use
+    if not book_id:
+        book_id = user_books[0]["book_id"]
+    else:
+        # Verify the requested book is in user's books
+        if book_id not in [b["book_id"] for b in user_books]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User does not have access to book {book_id}",
+            )
+
+    # Verify book.read permission
     await check_permission(token, book_id)
 
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -110,12 +129,19 @@ async def upload_pdf(
 
 @router.get("/tasks", response_model=list[TaskListItem])
 async def list_tasks(
-    book_id: str = Query(...),
     user: dict = Depends(get_current_user),
-    token: str = Depends(get_token),
 ):
-    await check_permission(token, book_id)
-    rows = await queries.list_tasks(book_id)
+    """
+    List all bank statement tasks for the authenticated user's books.
+    Books are automatically extracted from the user's AuthServer identity.
+    """
+    # Extract book_ids from user's books
+    book_ids = [b["book_id"] for b in user.get("books", [])]
+
+    if not book_ids:
+        return []
+
+    rows = await queries.list_tasks(book_ids)
     return [TaskListItem(**r) for r in rows]
 
 
