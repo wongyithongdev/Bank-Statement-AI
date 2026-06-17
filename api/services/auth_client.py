@@ -1,7 +1,8 @@
 """
 HTTP client for AuthServer identity and permission checks.
-  GET  /api/v1/users/me              → user identity + book bindings
-  POST /api/v1/permissions/check     → allow/deny for a book action
+  GET  /api/v1/users/me                    → user identity + book bindings
+  GET  /auth/api/v1/users/me/current-book  → user's currently selected book
+  POST /api/v1/permissions/check           → allow/deny for a book action
 """
 import httpx
 from fastapi import HTTPException, status
@@ -31,6 +32,43 @@ async def verify_identity(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AuthServer returned {resp.status_code}",
+        )
+    return resp.json()
+
+
+async def get_current_book(token: str) -> dict:
+    """
+    Call AuthServer GET /auth/api/v1/users/me/current-book.
+    Returns {"book_id": "...", "book_name": "...", "role": "..."}.
+    Raises 404 if user has no active books, 401 if token invalid, 502 if unreachable.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{settings.auth_server_url}/auth/api/v1/users/me/current-book",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AuthServer unreachable: {exc}",
+        )
+
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if resp.status_code == 404:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No active book selected. Please select a book first.",
         )
     if resp.status_code != 200:
         raise HTTPException(

@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 
 from api.config import settings
 from api.dependencies import get_current_user, get_token
-from api.services.auth_client import check_permission, verify_identity
+from api.services.auth_client import check_permission, verify_identity, get_current_book
 from api.services import queue
 from api.services.object_server import upload_file as upload_to_object_server
 from api.db import queries
@@ -49,39 +49,16 @@ async def _assert_task_access(task_id: str, user: dict) -> dict:
 async def upload_pdf(
     file: UploadFile = File(..., description="Bank statement PDF"),
     task_name: str = Form(None),
-    book_id: str = Form(None, description="Target book (optional, defaults to first book)"),
     user: dict = Depends(get_current_user),
     token: str = Depends(get_token),
 ):
     """
     Upload bank statement PDF for processing.
-    book_id is optional — defaults to the user's first book from AuthServer.
-    If provided, it must be a book the user belongs to.
+    Book is determined by AuthServer's current-book context — no book_id needed.
     """
-    user_books = user.get("books", [])
-    if not user_books:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to any books",
-        )
-
-    user_book_ids = {b.get("book_id") for b in user_books if b.get("book_id")}
-
-    if book_id:
-        # Caller specified a book — verify they actually belong to it
-        if book_id not in user_book_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied: user does not belong to book '{book_id}'",
-            )
-    else:
-        # Default to first book
-        book_id = user_books[0].get("book_id")
-        if not book_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User's book record is missing book_id",
-            )
+    # Get the user's currently active book from AuthServer
+    current_book = await get_current_book(token)
+    book_id = current_book["book_id"]
 
     # Upload is a mutating operation — require book.write permission
     await check_permission(token, book_id, action="book.write")
