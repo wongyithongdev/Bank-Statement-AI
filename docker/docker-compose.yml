@@ -9,7 +9,7 @@ services:
     container_name: bankstatement-api
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       # Docker socket — allows API to start worker containers
       - /var/run/docker.sock:/var/run/docker.sock
