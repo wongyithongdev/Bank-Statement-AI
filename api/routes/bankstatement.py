@@ -48,11 +48,14 @@ async def _assert_task_access(task_id: str, user: dict) -> dict:
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_pdf(
     file: UploadFile = File(..., description="Bank statement PDF"),
-    book_id: str = Form(None, description="Book ID (optional, defaults to first book)"),
     task_name: str = Form(None),
     user: dict = Depends(get_current_user),
     token: str = Depends(get_token),
 ):
+    """
+    Upload bank statement PDF for processing.
+    Automatically associated with the user's first book from AuthServer.
+    """
     # Get user's books from AuthServer identity
     user_books = user.get("books", [])
     if not user_books:
@@ -61,16 +64,8 @@ async def upload_pdf(
             detail="User does not belong to any books",
         )
 
-    # Determine which book to use
-    if not book_id:
-        book_id = user_books[0]["book_id"]
-    else:
-        # Verify the requested book is in user's books
-        if book_id not in [b["book_id"] for b in user_books]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User does not have access to book {book_id}",
-            )
+    # Auto-select first book (user can't choose, avoids cross-book pollution)
+    book_id = user_books[0]["book_id"]
 
     # Verify book.read permission
     await check_permission(token, book_id)
