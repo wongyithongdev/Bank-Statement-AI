@@ -27,8 +27,8 @@ async def _dispatcher():
                 continue
             _, task_id = item
 
-            # If rate limit reached, put the task back and wait
-            while await queue_svc.current_rpm() >= queue_svc.MAX_RPM:
+            # If MiMo RPM limit reached, put the task back and wait
+            while await queue_svc.current_rpm() >= queue_svc.max_rpm():
                 await r.rpush(queue_svc.QUEUE_KEY, task_id)
                 await asyncio.sleep(1)
                 item = await r.brpop(queue_svc.QUEUE_KEY, timeout=2)
@@ -90,4 +90,4 @@ app.include_router(bankstatement_router)
 async def health():
     rpm = await queue_svc.current_rpm()
     qlen = await queue_svc.queue_length()
-    return {"status": "ok", "queue_length": qlen, "rpm": rpm}
+    return {"status": "ok", "queue_length": qlen, "rpm": rpm, "rpm_limit": queue_svc.max_rpm()}

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     object_server_api_key: str = ""
 
     redis_url: str = "redis://redis:6379/0"
+    mimo_rpm_limit: int = 85  # MiMo API rate limit (requests per minute)
 
     class Config:
         env_file = str(Path(__file__).parent.parent / ".env")

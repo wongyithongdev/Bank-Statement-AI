@@ -12,7 +12,6 @@ _redis: aioredis.Redis | None = None
 
 QUEUE_KEY = "bankstatement:queue"   # List — LPUSH to enqueue, BRPOP to dequeue
 RPM_KEY   = "bankstatement:rpm"     # Sorted set — score = dispatch timestamp (ms)
-MAX_RPM   = 85                       # Maximum tasks dispatched per 60-second window
 
 
 def get_redis() -> aioredis.Redis:
@@ -37,6 +36,11 @@ async def enqueue_task(task_id: str) -> None:
 async def queue_length() -> int:
     """Return the number of tasks currently waiting in the queue."""
     return await get_redis().llen(QUEUE_KEY)
+
+
+def max_rpm() -> int:
+    """MiMo API RPM limit from config."""
+    return settings.mimo_rpm_limit
 
 
 async def current_rpm() -> int:
