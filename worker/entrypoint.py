@@ -225,12 +225,17 @@ def main():
                 print(f"Warning: Excel upload failed: {exc}", file=sys.stderr)
                 file_link = None
 
+        # Calculate total tokens used
+        token_log = llm_client.get_token_log()
+        total_tokens = sum(entry.get("total_tokens", 0) for entry in token_log) if token_log else 0
+
         # Final status
         _update_status(
             conn, task_id,
             status="completed",
             score=final_score,
             iterations=iteration,
+            token_count=total_tokens,
             xlsx_path=xlsx_path,
             file_link=file_link,
         )

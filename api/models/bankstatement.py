@@ -25,11 +25,10 @@ class TaskDetail(BaseModel):
     user_id: str
     status: str
     task_name: str | None
-    score: float | None
-    iterations: int | None
-    file_link: str | None
+    file_link: str | None  # Object Server link to download Excel
     error: str | None
     stream_events: list[Any]
-    chat_history: list[Any] | None  # Full conversation with Claude (Generator + Evaluator)
+    chat_history: list[Any] | None
     created_at: datetime
     updated_at: datetime
+    # Note: score, iterations, token_count are internal only, not exposed to external API

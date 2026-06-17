@@ -204,6 +204,10 @@ async def download_result(
     task_id: str,
     user: dict = Depends(get_current_user),
 ):
+    """
+    Redirect to Object Server file link for download.
+    File is stored in Object Server, not on this server.
+    """
     task = await _assert_task_access(task_id, user)
 
     if task["status"] != "completed":
@@ -212,16 +216,13 @@ async def download_result(
             detail=f"Task is not completed yet (status: {task['status']})",
         )
 
-    xlsx_path = task.get("xlsx_path")
-    if not xlsx_path or not Path(xlsx_path).exists():
+    file_link = task.get("file_link")
+    if not file_link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Excel output file not found",
+            detail="Excel output file not found on Object Server",
         )
 
-    filename = (task.get("task_name") or task_id).replace(" ", "_") + ".xlsx"
-    return FileResponse(
-        path=xlsx_path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=filename,
-    )
+    # Redirect to Object Server link
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=file_link, status_code=status.HTTP_302_FOUND)

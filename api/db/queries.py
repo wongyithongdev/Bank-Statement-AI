@@ -31,7 +31,7 @@ async def get_task(task_id: str) -> dict | None:
     row = await pool.fetchrow(
         """
         SELECT task_id, book_id, user_id, status, pdf_path, xlsx_path,
-               task_name, file_link, score, iterations, error,
+               task_name, file_link, score, iterations, token_count, error,
                stream_events, chat_history, created_at, updated_at
         FROM bankstatement
         WHERE task_id = $1
@@ -66,6 +66,7 @@ async def update_task_status(
     *,
     score: float | None = None,
     iterations: int | None = None,
+    token_count: int | None = None,
     xlsx_path: str | None = None,
     file_link: str | None = None,
     error: str | None = None,
@@ -77,13 +78,14 @@ async def update_task_status(
         SET status      = $2,
             score       = COALESCE($3, score),
             iterations  = COALESCE($4, iterations),
-            xlsx_path   = COALESCE($5, xlsx_path),
-            file_link   = COALESCE($6, file_link),
-            error       = COALESCE($7, error),
+            token_count = COALESCE($5, token_count),
+            xlsx_path   = COALESCE($6, xlsx_path),
+            file_link   = COALESCE($7, file_link),
+            error       = COALESCE($8, error),
             updated_at  = now()
         WHERE task_id = $1
         """,
-        task_id, status, score, iterations, xlsx_path, file_link, error,
+        task_id, status, score, iterations, token_count, xlsx_path, file_link, error,
     )
 
 
