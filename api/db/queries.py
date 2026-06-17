@@ -50,7 +50,7 @@ async def list_tasks(book_ids: list[str]) -> list[dict]:
         return []
     rows = await pool.fetch(
         """
-        SELECT task_id, task_name, status, score, iterations, created_at, updated_at, book_id
+        SELECT task_id, task_name, status, score, iterations, file_link, created_at, updated_at
         FROM bankstatement
         WHERE book_id = ANY($1)
         ORDER BY created_at DESC

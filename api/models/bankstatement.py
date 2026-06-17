@@ -16,6 +16,7 @@ class TaskListItem(BaseModel):
     status: str
     score: float | None
     iterations: int | None
+    file_link: str | None  # Object Server link to Excel, if completed
     created_at: datetime
     updated_at: datetime
 
