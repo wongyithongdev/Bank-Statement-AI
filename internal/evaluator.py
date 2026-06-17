@@ -11,8 +11,8 @@ import json
 import re
 from pathlib import Path
 import openpyxl
-import tools as tool_module
-import llm_client
+from . import tools as tool_module
+from . import llm_client
 
 
 MAX_EVAL_ROUNDS = 12
