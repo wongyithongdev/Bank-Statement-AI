@@ -12,7 +12,7 @@ async def upload_file(file_bytes: bytes, filename: str, bookid: str) -> dict:
     Upload a file to Object Server.
     Returns: {"code": "...", "link": "https://files.my365biz.com/files/...", ...}
     """
-    base_url = "https://files.my365biz.com"
+    base_url = settings.object_server_base_url.rstrip("/")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         files = {
@@ -40,7 +40,7 @@ async def upload_file(file_bytes: bytes, filename: str, bookid: str) -> dict:
 
 async def rename_file(code: str, new_name: str) -> None:
     """Rename a file in Object Server (updates metadata only)."""
-    base_url = "https://files.my365biz.com"
+    base_url = settings.object_server_base_url.rstrip("/")
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(

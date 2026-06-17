@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 
 from api.config import settings
 from api.dependencies import get_current_user, get_token
@@ -49,14 +49,15 @@ async def _assert_task_access(task_id: str, user: dict) -> dict:
 async def upload_pdf(
     file: UploadFile = File(..., description="Bank statement PDF"),
     task_name: str = Form(None),
+    book_id: str = Form(None, description="Target book (optional, defaults to first book)"),
     user: dict = Depends(get_current_user),
     token: str = Depends(get_token),
 ):
     """
     Upload bank statement PDF for processing.
-    Automatically associated with the user's first book from AuthServer.
+    book_id is optional — defaults to the user's first book from AuthServer.
+    If provided, it must be a book the user belongs to.
     """
-    # Get user's books from AuthServer identity
     user_books = user.get("books", [])
     if not user_books:
         raise HTTPException(
@@ -64,11 +65,26 @@ async def upload_pdf(
             detail="User does not belong to any books",
         )
 
-    # Auto-select first book (user can't choose, avoids cross-book pollution)
-    book_id = user_books[0]["book_id"]
+    user_book_ids = {b.get("book_id") for b in user_books if b.get("book_id")}
 
-    # Verify book.read permission
-    await check_permission(token, book_id)
+    if book_id:
+        # Caller specified a book — verify they actually belong to it
+        if book_id not in user_book_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied: user does not belong to book '{book_id}'",
+            )
+    else:
+        # Default to first book
+        book_id = user_books[0].get("book_id")
+        if not book_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User's book record is missing book_id",
+            )
+
+    # Upload is a mutating operation — require book.write permission
+    await check_permission(token, book_id, action="book.write")
 
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -177,6 +193,10 @@ async def stream_task(
 
             # Close stream when task is terminal
             if current_status in ("completed", "failed"):
+                # If client connected after task finished with no events emitted,
+                # send a synthetic terminal event so the client is not left hanging
+                if last_index == 0:
+                    yield f"data: {json.dumps({'event': current_status, 'synthetic': True})}\n\n"
                 break
 
             # Heartbeat every ~15s (10 × 1.5s polls)
@@ -223,6 +243,12 @@ async def download_result(
             detail="Excel output file not found on Object Server",
         )
 
-    # Redirect to Object Server link
-    from fastapi.responses import RedirectResponse
+    # Validate that the redirect target is our Object Server (prevent open redirect)
+    allowed_prefix = settings.object_server_base_url.rstrip("/")
+    if not file_link.startswith(allowed_prefix):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Stored file link does not point to the configured Object Server",
+        )
+
     return RedirectResponse(url=file_link, status_code=status.HTTP_302_FOUND)

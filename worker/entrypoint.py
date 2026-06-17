@@ -53,7 +53,7 @@ def _update_status(conn, task_id: str, status: str, **kwargs) -> None:
     sets = ["status = %s", "updated_at = now()"]
     values = [status]
 
-    for col in ("score", "iterations", "xlsx_path", "file_link", "error"):
+    for col in ("score", "iterations", "token_count", "xlsx_path", "file_link", "error"):
         if col in kwargs and kwargs[col] is not None:
             sets.append(f"{col} = %s")
             values.append(kwargs[col])
@@ -96,8 +96,9 @@ def _upload_xlsx_to_object_server(xlsx_path: str, task_name: str, book_id: str) 
     with open(xlsx_path, "rb") as f:
         file_bytes = f.read()
 
+    base_url = os.environ.get("OBJECT_SERVER_BASE_URL", "https://files.my365biz.com").rstrip("/")
     response = httpx.post(
-        "https://files.my365biz.com/upload",
+        f"{base_url}/upload",
         files={"file": (f"{task_name}.xlsx", file_bytes), "bookid": (None, book_id)},
         headers={"X-API-Key": api_key},
         timeout=60.0,
@@ -125,10 +126,22 @@ def main():
     conn = _get_conn()
     task = _fetch_task(conn, task_id)
 
-    pdf_path = task["pdf_path"]
+    pdf_url = task["pdf_path"]  # Object Server URL stored at upload time
     output_dir = Path(data_dir) / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = str(output_dir / f"{task_id}.xlsx")
+
+    # Download PDF from Object Server to a local path for the generator
+    pdf_path = str(Path(data_dir) / "uploads" / f"{task_id}.pdf")
+    Path(pdf_path).parent.mkdir(parents=True, exist_ok=True)
+    if pdf_url.startswith("http"):
+        api_key = os.environ.get("OBJECT_SERVER_API_KEY", "")
+        resp = httpx.get(pdf_url, headers={"X-API-Key": api_key} if api_key else {}, timeout=60.0, follow_redirects=True)
+        resp.raise_for_status()
+        Path(pdf_path).write_bytes(resp.content)
+    else:
+        # Already a local path (e.g. in dev/test)
+        pdf_path = pdf_url
 
     # Setup isolated sandbox for this task
     from worker.sandbox import setup as setup_sandbox, teardown as teardown_sandbox
@@ -273,10 +286,11 @@ def main():
         # Save full conversation log (thinking + tool_calls + messages) to DB
         _save_chat_history(conn, task_id, all_iterations_log)
 
-        # Final status
+        # Final status: only 'completed' if quality threshold was passed
+        final_status = "completed" if final_passed else "failed"
         _update_status(
             conn, task_id,
-            status="completed",
+            status=final_status,
             score=final_score,
             iterations=iteration,
             token_count=total_tokens,
