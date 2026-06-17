@@ -12,10 +12,10 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-import skill_loader
-import generator
-import evaluator
-import llm_client
+from internal import skill_loader
+from internal import generator
+from internal import evaluator
+from internal import llm_client
 
 MAX_ITERATIONS = 3
 PASS_THRESHOLD = 12.0

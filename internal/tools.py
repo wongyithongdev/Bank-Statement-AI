@@ -15,7 +15,7 @@ import os
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).parent
+PROJECT_ROOT = Path(__file__).parent.parent
 TIMEOUT = 60  # 秒
 
 

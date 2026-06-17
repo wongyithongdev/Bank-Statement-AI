@@ -13,7 +13,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
-_env_path = Path(__file__).parent / ".env"
+_env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(_env_path)
 
 PLANNER_MODEL   = os.getenv("MIMO_PLANNER_MODEL",   "mimo-v2.5-pro")

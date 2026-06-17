@@ -11,7 +11,7 @@ Model: mimo-v2.5-pro | reasoning: high
 import json
 import pdfplumber
 from pathlib import Path
-import llm_client
+from . import llm_client
 
 
 def _extract_pdf_preview(pdf_path: str, head_pages: int = 3, tail_pages: int = 2) -> str:

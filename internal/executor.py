@@ -16,8 +16,8 @@ import json
 import re
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import tools as tool_module
-import llm_client
+from . import tools as tool_module
+from . import llm_client
 
 
 MAX_TOOL_ROUNDS = 30

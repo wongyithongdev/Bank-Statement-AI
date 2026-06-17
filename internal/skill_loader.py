@@ -23,7 +23,7 @@ def load(skills_root: str = None) -> dict:
     }
     """
     if skills_root is None:
-        skills_root = Path(__file__).parent / "Skills"
+        skills_root = Path(__file__).parent.parent / "Skills"
 
     skills_root = Path(skills_root)
     catalog = {}
@@ -57,7 +57,7 @@ def load(skills_root: str = None) -> dict:
         scripts_dir = skill_dir / "scripts"
         scripts = []
         if scripts_dir.exists():
-            scripts = [str(p.relative_to(Path(__file__).parent)) for p in scripts_dir.rglob("*.py")]
+            scripts = [str(p.relative_to(Path(__file__).parent.parent)) for p in scripts_dir.rglob("*.py")]
 
         catalog[skill_key] = {
             "name": frontmatter_name,
