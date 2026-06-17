@@ -65,6 +65,16 @@ def _update_status(conn, task_id: str, status: str, **kwargs) -> None:
     conn.commit()
 
 
+def _save_chat_history(conn, task_id: str, history: list) -> None:
+    """Write the full conversation (all iterations) into chat_history JSONB."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE bankstatement SET chat_history = %s::jsonb, updated_at = now() WHERE task_id = %s",
+            (json.dumps(history, ensure_ascii=False), task_id),
+        )
+    conn.commit()
+
+
 def _fetch_task(conn, task_id: str) -> dict:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
@@ -149,6 +159,7 @@ def main():
         prev_summary = None
         final_score = 0.0
         final_passed = False
+        all_iterations_log = []  # accumulate full chat log across iterations
 
         for iteration in range(1, MAX_ITERATIONS + 1):
             _append_event(conn, task_id, {"event": "iteration_start", "iteration": iteration})
@@ -163,6 +174,21 @@ def main():
                 iteration=iteration,
                 sandbox_dir=sandbox_dir,
             )
+
+            # Read full generator conversation log (thinking + tool_calls + messages)
+            gen_log_path = Path(log_dir) / f"generator_iter{iteration}.json"
+            if gen_log_path.exists():
+                try:
+                    with open(gen_log_path, encoding="utf-8") as f:
+                        gen_log = json.load(f)
+                    all_iterations_log.append({
+                        "iteration": iteration,
+                        "phase": "generator",
+                        "messages": gen_log.get("messages", []),
+                        "reasoning_blocks": gen_log.get("reasoning_blocks", []),
+                    })
+                except Exception:
+                    pass
 
             if not gen_result.get("success"):
                 feedback = (
@@ -188,6 +214,21 @@ def main():
                 log_dir=log_dir,
                 iteration=iteration,
             )
+
+            # Read full evaluator conversation log
+            eval_log_path = Path(log_dir) / f"evaluator_iter{iteration}.json"
+            if eval_log_path.exists():
+                try:
+                    with open(eval_log_path, encoding="utf-8") as f:
+                        eval_log = json.load(f)
+                    all_iterations_log.append({
+                        "iteration": iteration,
+                        "phase": "evaluator",
+                        "messages": eval_log.get("messages", []),
+                        "reasoning_blocks": eval_log.get("reasoning_blocks", []),
+                    })
+                except Exception:
+                    pass
 
             score = eval_result["score"]
             passed = eval_result["passed"]
@@ -228,6 +269,9 @@ def main():
         # Calculate total tokens used
         token_log = llm_client.get_token_log()
         total_tokens = sum(entry.get("total_tokens", 0) for entry in token_log) if token_log else 0
+
+        # Save full conversation log (thinking + tool_calls + messages) to DB
+        _save_chat_history(conn, task_id, all_iterations_log)
 
         # Final status
         _update_status(
