@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 from api.config import settings
 from api.dependencies import get_current_user, get_token
 from api.services.auth_client import check_permission, verify_identity
-from api.services.docker_runner import start_worker
+from api.services import queue
 from api.services.object_server import upload_file as upload_to_object_server
 from api.db import queries
 from api.models.bankstatement import UploadResponse, TaskListItem, TaskDetail
@@ -120,13 +120,9 @@ async def upload_pdf(
         task_name=task_name or file.filename,
     )
 
-    # Start isolated Docker worker
-    try:
-        start_worker(task_id)
-    except RuntimeError as exc:
-        # Mark as failed immediately if Docker can't start
-        await queries.update_task_status(task_id, "failed", error=str(exc))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+    # Enqueue for dispatch — worker is started by the background dispatcher
+    # which enforces the MAX_RPM rate limit before spawning Docker containers
+    await queue.enqueue_task(task_id)
 
     return UploadResponse(
         task_id=row["task_id"],

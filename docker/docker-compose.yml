@@ -1,6 +1,13 @@
 version: "3.9"
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: bankstatement-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"   # local only — not exposed externally
+
   api:
     build:
       context: ..
@@ -8,6 +15,8 @@ services:
     image: bankstatement-api:latest
     container_name: bankstatement-api
     restart: unless-stopped
+    depends_on:
+      - redis
     ports:
       - "8001:8000"
     volumes:
@@ -25,6 +34,7 @@ services:
       WORKER_IMAGE: "bankstatement-worker:latest"
       DATA_DIR: "/data/bankstatement"
       OBJECT_SERVER_API_KEY: "b729879ca8881e9a7b986e143e541219d43e0e36ca183529f34aa31ac007c39c"
+      REDIS_URL: "redis://redis:6379/0"
     env_file:
       - ../.env
     healthcheck:

@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     object_server_base_url: str = "https://files.my365biz.com"
     object_server_api_key: str = ""
 
+    redis_url: str = "redis://redis:6379/0"
+
     class Config:
         env_file = str(Path(__file__).parent.parent / ".env")
         env_file_encoding = "utf-8"
